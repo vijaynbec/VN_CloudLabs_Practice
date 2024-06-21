@@ -1,0 +1,8 @@
+"VM's - Hardware, OS, Hypervisor helps to allow multiple VM machines which has applications,
+libs, dependencies and guest OS on each VM's."
+
+Consumes more resources, High GB memory and takes more time to boot and more isolations.
+Docker Containers - Hardware, OS, Docker help to allow's multiple containers which has package of
+applications, libs, dependencies, no guest OS share the
+OS kurnel of Hardware. Consumes less resources, Less GB memory and takes less time to boot
+and less isolation.

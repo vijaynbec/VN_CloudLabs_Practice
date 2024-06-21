@@ -1,0 +1,52 @@
+1- Create new S3 bucket by default.
+   arn:aws:s3:::lab2-s3-bucket
+2- Create new IAM Role
+  Read from S3 Bucket (`AmazonS3ReadOnlyAccess`)
+  Receive message from SQS Queue (`AWSLambdaSQSQueueExecutionRole`)
+  Write to DynamoDB table (`AmazonDynamoDBFullAccess`)
+  Write logs to CloudWatch (`AWSLambdaBasicExecutionRole`)
+3- Create Lamda Fucntion using role from#2
+4- Create Deadletter SQs
+5- Create SQS with Lamda trigger
+   arn:aws:sqs:us-east-1:946195566158:lab2-standard-SQS
+
+Old by default
+{
+  "Version": "2008-10-17",
+  "Id": "__default_policy_ID",
+  "Statement": [
+    {
+      "Sid": "__owner_statement",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::946195566158:root"
+      },
+      "Action": "SQS:*",
+      "Resource": "arn:aws:sqs:us-east-1:946195566158:lab2-standard-SQS"
+    }
+  ]
+}
+
+new generated
+
+{
+  "Id": "Policy1671287655643",
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Stmt1671287640156",
+      "Action": [
+        "sqs:SendMessage"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:sqs:us-east-1:946195566158:lab2-standard-SQS",
+      "Condition": {
+        "StringEquals": {
+          "aws:SourceAccount": "946195566158"
+        },
+        "ArnLike": {
+          "aws:SourceArn": "arn:aws:s3:::lab2-s3-bucket"
+        }
+      },
+      "Principal": "*"
+    }

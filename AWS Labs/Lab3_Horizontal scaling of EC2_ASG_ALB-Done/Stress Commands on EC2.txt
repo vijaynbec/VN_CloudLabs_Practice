@@ -1,0 +1,5 @@
+Run the following commands to install the stress utility on the EC2 instance
+sudo amazon-linux-extras install epel -y
+sudo yum install stress -y
+Invoke the stress test on the instance using the following command:
+stress --cpu 8 --timeout 300
