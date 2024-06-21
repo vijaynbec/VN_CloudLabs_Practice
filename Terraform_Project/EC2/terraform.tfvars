@@ -1,0 +1,1 @@
+ec2tag = "t2.small from tfvars"   # pass this value to variables_ec2.tf
