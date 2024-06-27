@@ -1,0 +1,20 @@
+Terraform Concepts
+- Input Variable
+- Output Values
+- Local Values
+- Data Source
+
+NOte: Variables can be defined in different ways
+ -> Input Variable Basics
+ -> Prompt during terraform-apply
+ -> override using -var arguments
+ -> override default values by env variables
+ -> using .tfvar files
+ -> Protecting sensitive data in variables
+ -> Data Source (it helps to get
+ information outside terraform also inside from different projects.
+AWS Service
+- Dynamically get latest AMI ID for instance
+- EC2 instance via key-pair
+- New Security Groups in Default VPC
+- EC2 instance launch voa Key Pair and assosiate the SG

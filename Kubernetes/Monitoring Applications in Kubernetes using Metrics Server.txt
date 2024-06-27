@@ -1,0 +1,95 @@
+- create name space - staging
+kubectl create namespace staging
+
+- set the namespace as default
+k config set-context default --namespace staging
+Context "default" modified.
+- validate the default namespace is change to staging
+k config view
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: DATA+OMITTED
+    server: https://127.0.0.1:6443
+  name: default
+contexts:
+- context:
+    cluster: default
+    namespace: staging
+    user: default
+  name: default
+current-context: default
+kind: Config
+preferences: {}
+users:
+- name: default
+  user:
+    client-certificate-data: REDACTED
+    client-key-data: REDACTED
+
+
+- create deployment
+k create deploy brezyweather --replicas=2 --image=codewithpraveen/labs-k8s-brezyweather:1.0 --port=80 --dry-run=client -o yaml > dp.yaml
+vi dp.yaml
+k apply -f dp.yaml
+deployment.apps/brezyweather created
+k get po
+NAME                            READY   STATUS              RESTARTS   AGE
+brezyweather-786798868d-64pjh   0/1     ContainerCreating   0          6s
+brezyweather-786798868d-pxbgr   0/1     ContainerCreating   0          6s
+k get po
+NAME                            READY   STATUS    RESTARTS   AGE
+brezyweather-786798868d-64pjh   1/1     Running   0          10s
+brezyweather-786798868d-pxbgr   1/1     Running   0          10s
+k get deploy
+NAME           READY   UP-TO-DATE   AVAILABLE   AGE
+brezyweather   2/2     2            2           15s
+
+-- create service
+k create svc clusterip brezyweather-service -n staging --tcp=8080:80 --dry-run=client -o yaml > sv.yaml
+vi sv.yaml
+k apply -f sv.yaml
+service/brezyweather-service created
+
+- k list all items
+labsuser@labs-vm-55c60958-d526-4f09-b23e-3115d2aa88fc:~/brezyweather$ k get all
+NAME                                READY   STATUS    RESTARTS   AGE
+pod/brezyweather-786798868d-64pjh   1/1     Running   0          14m
+pod/brezyweather-786798868d-pxbgr   1/1     Running   0          14m
+
+NAME                           TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)    AGE
+service/brezyweather-service   ClusterIP   10.43.15.52   <none>        8080/TCP   81s
+
+NAME                           READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/brezyweather   2/2     2            2           14m
+
+NAME                                      DESIRED   CURRENT   READY   AGE
+replicaset.apps/brezyweather-786798868d   2         2         2       14m
+labsuser@labs-vm-55c60958-d526-4f09-b23e-3115d2aa88fc:~/brezyweather$ curl 10.43.15.52:8080/api/v1/weather
+[{"id":1,"time":"2024-06-26T15:38:26.6302621+00:00","temperature":28,"humidity":78,"airQuality":"Fair"},{"id":2,"time":"2024-06-26T14:38:26.6302636+00:00","temperature":27,"humidity":84,"airQuality":"Healthy"},{"id":3,"time":"2024-06-26T13:38:26.6302638+00:00","temperature":33,"humidity":40,"airQuality":"Healthy"}]labsuser@labs-vm-55c60958-d526-4f09-b23e-3115d2aa88fc:~/brezyweather$
+
+- see the nodes CPU and memory
+k top nodes
+NAME   CPU(cores)   CPU%   MEMORY(bytes)   MEMORY%
+labs   96m          4%     1131Mi          30%
+
+k top pods
+
+NAME                            CPU(cores)   MEMORY(bytes)
+brezyweather-786798868d-64pjh   1m           33Mi
+brezyweather-786798868d-pxbgr   1m           19Mi
+
+- check for metric service installed or not
+kubectl get deployments -n kube-system
+NAME                     READY   UP-TO-DATE   AVAILABLE   AGE
+local-path-provisioner   1/1     1            1           45m
+coredns                  1/1     1            1           45m
+traefik                  1/1     1            1           45m
+metrics-server           1/1     1            1           45m
+k top pods
+NAME                            CPU(cores)   MEMORY(bytes)
+brezyweather-786798868d-64pjh   1m           33Mi
+brezyweather-786798868d-pxbgr   1m           19Mi
+k top node
+NAME   CPU(cores)   CPU%   MEMORY(bytes)   MEMORY%
+labs   102m         5%     1137Mi          30%
