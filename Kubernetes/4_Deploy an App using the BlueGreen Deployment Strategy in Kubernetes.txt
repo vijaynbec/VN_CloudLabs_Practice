@@ -1,0 +1,225 @@
+1- Get cluster info
+
+$ k cluster-info
+Kubernetes control plane is running at https://127.0.0.1:6443
+CoreDNS is running at https://127.0.0.1:6443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
+Metrics-server is running at https://127.0.0.1:6443/api/v1/namespaces/kube-system/services/https:metrics-server:https/proxy
+
+2- create folder for application installation
+
+$ mkdir brezyweather
+$ ls
+brezyweather  kube  README.md
+$ cd brezyweather
+:~/brezyweather$ pwd
+/home/labsuser/brezyweather
+
+3- Create a deployment manifest file for the Weather app for the blue version and name it brezyweather-blue. The file should contain information about the replicas (count = 2), the container image for the blue version (codewithpraveen/labs-k8s-brezyweather:1.0) and port 80
+
+$ k create deploy brezyweather-blue --image=codewithpraveen/labs-k8s-brezyweather:1.0 --replicas=2
+--port=80 --dry-run=client -o yaml > brezyweather-blue-deployment.yml
+
+create similar deployement yaml for green with image as codewithpraveen/labs-k8s-brezyweather:2.0
+
+k create deploy brezyweather-green --image=codewithpraveen/labs-k8s-brezyweather:2.0 --replicas=2 --port=80 --dry-run=client -o yaml > brezyweather-green-deployment.yml
+
+$ ls
+brezyweather-blue-deployment.yml  brezyweather-green-deployment.yml
+
+edit the yaml file with version tags referencing to same app name
+with different version and deployment names as below
+
+yaml create by command line
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: brezyweather-blue
+  name: brezyweather-blue
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: brezyweather-blue
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: brezyweather-blue
+    spec:
+      containers:
+      - image: codewithpraveen/labs-k8s-brezyweather:1.0
+        name: labs-k8s-brezyweather
+        ports:
+        - containerPort: 80
+        resources: {}
+status: {}
+
+
+Modified yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  #  labels:
+  #  app: brezyweather-blue
+  name: brezyweather-blue
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: brezyweather
+      version: blue
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: brezyweather
+        version: blue
+    spec:
+      containers:
+      - image: codewithpraveen/labs-k8s-brezyweather:1.0
+        name: labs-k8s-brezyweather
+        ports:
+        - containerPort: 80
+        resources: {}
+status: {}
+
+----------
+$ k apply -f brezyweather-blue-deployment.yml
+deployment.apps/brezyweather-blue created
+$ k get deploy
+NAME                READY   UP-TO-DATE   AVAILABLE   AGE
+brezyweather-blue   2/2     2            2           10s
+$ k apply -f brezyweather-green-deployment.yml
+deployment.apps/brezyweather-green created
+$ k get deploy
+NAME                 READY   UP-TO-DATE   AVAILABLE   AGE
+brezyweather-blue    2/2     2            2           24s
+brezyweather-green   2/2     2            2           3s
+
+k get po
+NAME                                  READY   STATUS    RESTARTS   AGE
+brezyweather-blue-7845f5c85d-p9bdq    1/1     Running   0          3m20s
+brezyweather-blue-7845f5c85d-424v9    1/1     Running   0          3m20s
+brezyweather-green-6fcdc7c44d-n8wrj   1/1     Running   0          2m59s
+brezyweather-green-6fcdc7c44d-bg4qt   1/1     Running   0          2m59s
+
+
+Default yaml for service.
+
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: brezyweather-service
+  name: brezyweather-service
+spec:
+  ports:
+  - name: 8080-80
+    port: 8080
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: brezyweather-service
+  type: LoadBalancer
+status:
+  loadBalancer: {}
+
+modified svc:
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: brezyweather-service
+  name: brezyweather-service
+spec:
+  ports:
+  - name: 8080-80
+    port: 8080
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: brezyweather
+    version: blue
+  type: LoadBalancer
+status:
+  loadBalancer: {}
+
+$describe svc  brezyweather-service
+Name:                     brezyweather-service
+Namespace:                default
+Labels:                   app=brezyweather-service
+Annotations:              <none>
+Selector:                 app=brezyweather,version=blue
+Type:                     LoadBalancer
+IP Family Policy:         SingleStack
+IP Families:              IPv4
+IP:                       10.43.193.169
+IPs:                      10.43.193.169
+LoadBalancer Ingress:     10.0.2.2
+Port:                     8080-80  8080/TCP
+TargetPort:               80/TCP
+NodePort:                 8080-80  30991/TCP
+Endpoints:                10.42.0.10:80,10.42.0.9:80
+Session Affinity:         None
+External Traffic Policy:  Cluster
+Events:
+  Type    Reason                Age   From                Message
+  ----    ------                ----  ----                -------
+  Normal  EnsuringLoadBalancer  44s   service-controller  Ensuring load balancer
+  Normal  AppliedDaemonSet      44s   service-controller  Applied LoadBalancer DaemonSet kube-system/svclb-brezyweather-service-3718e563
+  Normal  UpdatedLoadBalancer   43s   service-controller  Updated LoadBalancer with new IPs: [] -> [10.0.2.2]
+
+ We can access curl by ip pf svc
+
+ curl 10.43.163.188:80/api/v2/weather
+
+ update the svc by its label as green and recreate the svc
+
+ Name:                     brezyweather-service
+Namespace:                default
+Labels:                   app=brezyweather-service
+Annotations:              <none>
+Selector:                 app=brezyweather,version=green
+Type:                     LoadBalancer
+IP Family Policy:         SingleStack
+IP Families:              IPv4
+IP:                       10.43.138.119
+IPs:                      10.43.138.119
+LoadBalancer Ingress:     10.0.2.2
+Port:                     8080-80  8080/TCP
+TargetPort:               80/TCP
+NodePort:                 8080-80  30461/TCP
+Endpoints:                10.42.0.11:80,10.42.0.12:80
+Session Affinity:         None
+External Traffic Policy:  Cluster
+Events:
+  Type    Reason                Age    From                Message
+  ----    ------                ----   ----                -------
+  Normal  AppliedDaemonSet      2m25s  service-controller  Applied LoadBalancer DaemonSet kube-system/svclb-brezyweather-service-e1818eba
+  Normal  EnsuringLoadBalancer  2m25s  service-controller  Ensuring load balancer
+  Normal  UpdatedLoadBalancer   2m24s  service-controller  Updated LoadBalancer with new IPs: [] -> [10.0.2.2]
+
+  Delete the blue deployment and access the same service by curl command.
+
+  Later we can delete all Kubernetes components.
+
+ :~/brezyweather$ k get deploy
+NAME                 READY   UP-TO-DATE   AVAILABLE   AGE
+brezyweather-green   2/2     2            2           73m
+brezyweather-blue    2/2     2            2           7m4s
+:~/brezyweather$ k delete deploy brezyweather-blue
+deployment.apps "brezyweather-blue" deleted
+:~/brezyweather$ k delete deploy brezyweather-green
+deployment.apps "brezyweather-green" deleted
+:~/brezyweather$ k get po
+No resources found in default namespace.
+:~/brezyweather$ k delete svc brezyweather-service
+service "brezyweather-service" deleted
+

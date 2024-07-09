@@ -1,0 +1,115 @@
+# create deployment by using a
+- deployment name: concerto-deployment,
+                    Replicas=2,
+                    Image: timpamungkas/concerto:1.0.0
+ k create deploy concerto-deployment --replicas=2 --image=timpamungkas/concerto:1.0.0 --dry-run=client -o yaml > deploy.yaml
+k get deploy
+NAME                  READY   UP-TO-DATE   AVAILABLE   AGE
+concerto-deployment   0/2     2            0           5s
+labsuser@labs-vm-1ffb18c8-cfbd-44c1-8ce8-a58e2c939e12:~$ k get po
+NAME                                   READY   STATUS    RESTARTS   AGE
+concerto-deployment-69485985ff-kxws9   1/1     Running   0          36s
+concerto-deployment-69485985ff-4x4fl   1/1     Running   0          36s
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: concerto-deployment
+  name: concerto-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: concerto-deployment
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: concerto-deployment
+    spec:
+      containers:
+      - image: timpamungkas/concerto:1.0.0
+        name: concerto
+        resources: {}
+status: {}
+~
+# create a service - change the selector as per deployment
+k create svc loadbalancer concerto-service --tcp=8080:8080 --dry-run=client -o yaml > svc.yaml
+
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: concerto-service
+  name: concerto-service
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: concerto-deployment             (changed as per deployment)
+  type: LoadBalancer
+status:
+  loadBalancer: {}
+
+k get all
+NAME                                       READY   STATUS    RESTARTS   AGE
+pod/concerto-deployment-69485985ff-kxws9   1/1     Running   0          51m
+pod/concerto-deployment-69485985ff-4x4fl   1/1     Running   0          51m
+
+NAME                       TYPE           CLUSTER-IP    EXTERNAL-IP   PORT(S)          AGE
+service/kubernetes         ClusterIP      10.43.0.1     <none>        443/TCP          27d
+service/concerto-service   LoadBalancer   10.43.40.29   10.0.2.2      8080:31826/TCP   5m22s
+
+NAME                                  READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/concerto-deployment   2/2     2            2           51m
+
+NAME                                             DESIRED   CURRENT   READY   AGE
+replicaset.apps/concerto-deployment-69485985ff   2         2         2       51m
+
+
+# add readiness and liveness probe at pod - container section.
+
+Update deploy.yaml
+
+       readinessProbe:
+          httpGet:
+            path: /concerto/health/readiness
+            port: 8080
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          timeoutSeconds: 2
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /concerto/health/liveness
+            port: 8080
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          timeoutSeconds: 2
+          failureThreshold: 3
+NAME                                   READY   STATUS    RESTARTS   AGE
+concerto-deployment-64b76c9b56-tg9j2   0/1     Running   0          20s
+concerto-deployment-64b76c9b56-8k9r5   0/1     Running   0          20s
+labsuser@labs-vm-1ffb18c8-cfbd-44c1-8ce8-a58e2c939e12:~$ k get po
+NAME                                   READY   STATUS    RESTARTS   AGE
+concerto-deployment-64b76c9b56-tg9j2   0/1     Running   0          20s
+concerto-deployment-64b76c9b56-8k9r5   0/1     Running   0          20s
+labsuser@labs-vm-1ffb18c8-cfbd-44c1-8ce8-a58e2c939e12:~$ k get po
+NAME                                   READY   STATUS    RESTARTS   AGE
+concerto-deployment-64b76c9b56-tg9j2   0/1     Running   0          21s
+concerto-deployment-64b76c9b56-8k9r5   0/1     Running   0          21s
+labsuser@labs-vm-1ffb18c8-cfbd-44c1-8ce8-a58e2c939e12:~$ k get po
+NAME                                   READY   STATUS    RESTARTS   AGE
+concerto-deployment-64b76c9b56-tg9j2   0/1     Running   0          23s
+concerto-deployment-64b76c9b56-8k9r5   0/1     Running   0          23s
+labsuser@labs-vm-1ffb18c8-cfbd-44c1-8ce8-a58e2c939e12:~$ k get po
+NAME                                   READY   STATUS    RESTARTS   AGE
+concerto-deployment-64b76c9b56-8k9r5   1/1     Running   0          46s
+concerto-deployment-64b76c9b56-tg9j2   1/1     Running   0          46s
+labsuser@labs-vm-1ffb18c8-cfbd-44c1-8ce8-a58e2c939e12:~$

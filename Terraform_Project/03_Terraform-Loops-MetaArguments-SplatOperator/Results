@@ -1,0 +1,28 @@
+Apply complete! Resources: 4 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+for_out_list = [
+  "ec2-34-229-14-16.compute-1.amazonaws.com",
+  "ec2-34-236-156-143.compute-1.amazonaws.com",
+]
+for_out_map = {
+  "i-0999019e40cbfae0a" = "ec2-34-229-14-16.compute-1.amazonaws.com"
+  "i-0d2c5e2268171511b" = "ec2-34-236-156-143.compute-1.amazonaws.com"
+}
+for_out_map2 = {
+  "1" = "ec2-34-236-156-143.compute-1.amazonaws.com"
+}
+splat_out_publicdns = [
+  "ec2-34-229-14-16.compute-1.amazonaws.com",
+  "ec2-34-236-156-143.compute-1.amazonaws.com",
+]
+splat_out_publicdns_latest = [
+  "ec2-34-229-14-16.compute-1.amazonaws.com",
+  "ec2-34-236-156-143.compute-1.amazonaws.com",
+
+
+
+# after terraform destroy
+
+Destroy complete! Resources: 4 destroyed.

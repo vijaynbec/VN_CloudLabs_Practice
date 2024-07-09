@@ -1,0 +1,28 @@
+Apply complete! Resources: 8 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+instance_publicdns = toset([
+  "ec2-3-209-10-0.compute-1.amazonaws.com",
+  "ec2-3-239-245-247.compute-1.amazonaws.com",
+  "ec2-52-206-171-167.compute-1.amazonaws.com",
+  "ec2-54-172-242-4.compute-1.amazonaws.com",
+  "ec2-54-175-106-27.compute-1.amazonaws.com",
+  "ec2-54-242-201-8.compute-1.amazonaws.com",
+])
+instance_publicdns2 = tomap({
+  "us-east-1a" = "ec2-52-206-171-167.compute-1.amazonaws.com"
+  "us-east-1b" = "ec2-3-239-245-247.compute-1.amazonaws.com"
+  "us-east-1c" = "ec2-54-175-106-27.compute-1.amazonaws.com"
+  "us-east-1d" = "ec2-54-242-201-8.compute-1.amazonaws.com"
+  "us-east-1e" = "ec2-54-172-242-4.compute-1.amazonaws.com"
+  "us-east-1f" = "ec2-3-209-10-0.compute-1.amazonaws.com"
+})
+instance_publicip = toset([
+  "3.209.10.0",
+  "3.239.245.247",
+  "52.206.171.167",
+  "54.172.242.4",
+  "54.175.106.27",
+  "54.242.201.8",
+])
