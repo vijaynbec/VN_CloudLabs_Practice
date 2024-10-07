@@ -1,0 +1,366 @@
+Snowflake
+
+airflow and astronomer
+
+Apache Airflow: An open-source tool for workflow management.
+Astronomer: A platform built around Airflow that offers additional features and a managed service for easier deployment and scaling.
+Together, they can be used to create robust data pipelines and manage complex workflows efficiently.
+
+airflow: 
+
+Snowflake is a cloud data warehouse that can be integrated with Apache Airflow to perform a variety of tasks, including: 
+Running SQL: Users can run SQL commands in a Snowflake database 
+Monitoring SQL queries: Users can monitor the status of SQL queries 
+Running Python functions: Users can run Snowpark Python functions 
+Loading and exporting data: Users can load and export data to and from Snowflake 
+Scheduling and monitoring: Users can use Airflow's workflow management capabilities to schedule and monitor tasks 
+
+
+astronomer :
+
+Astronomer is a managed Airflow service that allows you to orchestrate workflows in a cloud environment. A common use case for
+Airflow is taking data from one source, transforming it over several steps, and loading it into a data warehouse.
+
+Simplified deployment: Astronomer's managed service makes it easier to deploy, scale, and manage Airflow instances. 
+Reduced dependency on DevOps: Astronomer's managed service reduces the need for DevOps. 
+Access to the latest features: Astronomer provides access to the latest Airflow features and bug fixes. 
+Best practices: Astronomer provides access to best practices, case studies, and knowledge from the Airflow community. 
+Airflow RBAC: Astronomer's RBAC extends into Airflow and takes precedence, so there's no need to use both Airflow RBAC and Astronomer RBAC. 
+Unified scheduling system: Airflow's unified scheduling system can scale to enterprise and be hosted anywhere. 
+Agility: Airflow's architecture allows Astronomer to stay agile and experiment with new technologies.
+
+Kafka basics - Kafka connector
+
+
+Concepts
+
+S3 integration
+
+different types of ingestions:
+    Bulk Data loading - Load from S3, COPY INTO Command: Used to load data from staged files into Snowflake tables. File formats supports CSV, JSON
+	Continous Data ingestions - stream data near to real time. Automate data as soon it arrives on stage/s3, 
+	                            stream capture the changes inserts, delets and updates
+	External Tables - Define the external that reference to S3, query data stored in S3 without loading to snowflake.
+	Data Integration Tools - (ETL tools) - for multiple source with complex transformation to snowflake
+	Database Replication and Change Data Capture (CDC) - Capture the changed data from other DB to snowflake. 
+	API-Based Ingestion: Programatic Data ingestion by API to snowflake
+	Data Sharing:  sharing the snowflake data with other accounts without loading. 
+
+access management, different IAM roles
+
+Roles in snowflake
+
+	ACCOUNTADMIN	Highest-level admin role for user management and resource allocation.
+                   	Full access to all resources, manage users, roles, and account settings	Overall account management
+	SYSADMIN	    Database-focused admin role, Manage databases, schemas, tables, and user access	Database administration and management. Custome Roles are assigned
+	USERADMIN	    User and role management - Manage users and roles, reset passwords. but has limited access to data objects.
+	ORGADMIN
+	SECURITYADMIN   - Responsible for managing roles and permissions. Can grant or revoke roles and manage access control
+	PUBLIC          - Default for every user
+	
+	Object is owned by the owner -	Roles and Prvillage assinged to role
+	
+	Custom Roles: Org can create custum roles for Data engineer, analyst and business users.
+
+Data loading:
+	Bulk loading: High volume data load from S3, GCP other places.
+	Continous loading: after one time load, small size of files get loaded on certain frequency.
+	Stages: External(S3, GCP, Azure) and Internal Stage(internal to snowflake)
+	CREATE STAGE (URL/S3, access settings)  - statement for external stage	
+	CREATE OR REPLACE DATABASE MANAGE_DB
+	CREATE OR REPLACE SCHEMA external_stages;
+	// dummy stage
+	CREATE OR REPLACE STAGE MANAGE_DB.external_stages.aws_stage3 MANAGE_DB.EXTERNAL_STAGES.AWS_STAGE2
+    url='s3://snowflakeloadkfjgldjglsdummy'
+    credentials=(aws_key_id='ABCD_DUMMY_ID' aws_secret_key='1234abcd_key');
+	DESC STAGE MANAGE_DB.external_stages.aws_stage;                    # describe command for stage
+	list @aws_stage     # reference external stage
+
+snowpipe - automatic data loading from source to snowflake, its serverless future from snowflake
+         - s3 to snowflake
+         - create stage and storage integration		   
+		 - Copy command
+		 - Create pipe using copy command definition
+		 - Add S3 notifications  even to trigger snowpipe
+		 - snowpipe trigger
+
+Creation Task and scheduling, dependency tree
+
+  - Can create a task on table load by schedule or cron job.
+  - one task can be add as child to keep dependency
+  - tasks can resume and suspended
+  - while doing alter all dependency tasks should be in suspend mode. 
+
+Streams:
+ - to track the changes on source - which will bring the inserts/updates/deletes into staging - and final tables.
+ - default and standards - capture all data changes. Mode is default
+ - Append Only - capture only inserts  - APEND_ONLY = TRUE  - mode is APPEND_ONLY
+ 
+Performance:
+   - Dedicated DW based on the user/groups or departments based on classifications or usage groups.(BI, Marketing, DataScience) - Still not too many warehouses
+   - Refine the classifications - without creating additional workloads.
+   - Scaleup and down based on time on that DW based on usecase. - Increasing the size of virtual warehouse to handle workload on specific time.
+   - scaleout - additional warehouse to add on the existing ones. Making multi cluster warehouse. If users are more scaleout is good option.
+   Economy, standard
+Cashing:If underlying data is not changes and executing a same SQL last 24 hours- then results pulled from cashing. Automatically managed by snowflake
+  - query profile help to look the stats
+Clustering: 
+
+TO_DATE or TO_Timestamp can be used after loadding the table to snowflake
+
+Different types of tables
+	Permenant Table: Default table in snowflake and used mainly for long term structure storage or permanant in snowflake untill explicit deletion
+	Temprory Table:  just needed for short time untill session ends - like checking few things
+	Transient Table: Similar to permanent tables but without fail-safe protection. Data is not recoverable after deletion, 
+	                 and they do not need additional storage costs for fail-safe.
+	External Tables: Data stored outside the snowflake, typically to S3
+	Materialized Views: Appliacble for complex query for performance change
+	Clone table: We can restrict the duplicate data time of cloning. For creating test/dev environments
+	secure view: enforce row-level security by restricting access based on user roles.
+		Use RBAC to manage who can access the table.  - create role level access on "table", assign to user or user groups.
+		Implement data masking policies for sensitive columns. MASKING POLICY  - Create the masking policy on the specific column of 
+		table to mask and assign to user, roles
+		Optionally, create row access policies for finer control.(ACCESS POLICY) - creating row access policy for user role and assign to table. 
+		
+
+Time travel and fail safe
+
+	Time Travel:
+		Enables users to access and restore historical data.
+		Retention period is configurable (up to 90 days).
+		Useful for recovering from unintended changes.
+
+	Fail-Safe:
+
+		Provides an additional 7 days of data recovery after Time Travel ends.
+		Automatically managed by Snowflake.
+		Intended for recovery in critical scenarios, typically involving Snowflake support.
+		
+Zero cloning
+	Help for the data copy of the objects - table, schema, database without duplication, additional storage/cost.
+	Created instantly, underhood its same object.
+	Initialy its readonly objects, any changed made on clones will create seperate storage. 
+	Scenario's 
+		Testing and Development: Clone production tables for development or testing environments without impacting performance or 
+		                         consuming extra storage.
+		Data Recovery: Create a clone of a table before performing risky operations to ensure you have a backup to revert to if necessary.
+		
+Database replications
+
+
+SQL statements day-day
+
+Connecting to a Database
+	USE DATABASE my_database;
+	USE SCHEMA my_schema;
+Viewing Current User and Role
+	SELECT CURRENT_USER(), CURRENT_ROLE();
+Listing Databases, Schemas, and Tables
+	SHOW DATABASES;
+	SHOW SCHEMAS IN DATABASE my_database;
+	SHOW TABLES IN SCHEMA my_schema;
+Describing Table Structure
+	DESCRIBE TABLE my_table;
+Querying Data
+	SELECT * FROM my_table LIMIT 100;
+Checking Query History
+	SELECT * FROM TABLE(information_schema.query_history()) 
+	WHERE user_name = CURRENT_USER() 
+	ORDER BY start_time DESC 
+	LIMIT 10;
+Managing Users and Roles
+    CREATE USER new_user PASSWORD='securePassword' DEFAULT_ROLE='public';
+    GRANT ROLE my_role TO USER new_user;
+	SHOW USERS;
+    REVOKE ROLE my_role FROM USER new_user;
+warehouse operations
+	ALTER WAREHOUSE my_warehouse RESUME;
+	ALTER WAREHOUSE my_warehouse RESUME/SUSPEND;
+	SHOW warehouse name
+load the data into 
+	COPY INTO my_table FROM @my_stage FILE_FORMAT=(TYPE='CSV');
+ 
+	decribe integration
+
+	
+
+Group by, Order by: Group by used normally to aggregate, sum function on few columns of the table.
+                    Order by used arrange the results of SQL in asscending or descending.  
+					
+Data Protection: 
+  Time travel enable - to get history based on timestamp
+  
+  - deleted or updated data
+  - restore db, schema etc from specific date
+  - clone it from previous state
+  
+  based on timestamp
+  select * from table1 AT/before(TIMESTAMP => timstamp)
+  based on offset
+  select * from table1 AT(OFFSET => -10*60)
+  based on query id
+  select * from table before (STATEMENT => query_id)
+  undrop a table/object/schema's
+  undrop table table_name  
+  
+  
+  We cannot undrop if the table 	0 days.
+  
+  
+  Fail-Safe - No user operations..and user cannot access the DB from file safe.
+   - data protection in case of disaster
+   - default 7 days after the time travel ends.
+   - snowflake support team helpl to recover from filesafe in 7 days. 
+   - Storage cost+
+   
+ Different types of tables:
+ 
+ Permenant - default table..used by create or replace table. Has time travel retention period and Fail safe. stay untill dropped
+ Transient - has travel retention period but not the fail safe.  - stay untill dropped. 
+ Temprory - has travel retention period but not the fail safe for specific session.
+ 
+ Summary of Differences by Table Type
+ 
+ 
+Table Type	Time Travel Duration				Fail-Safe retention Duration		Data Retention Duration
+Permanent	Up to 90 days						7 days after time travel			Configurable (0-90 days)
+Transient	Maximum of 1 day					Not available						Fixed at 1 day
+Temporary	Not supported						Not applicable		    			Deleted at session end
+ Views     	Up to 90 days	                    7 days after time travel			Configurable (0-90 days)
+ 
+
+Zero copy cloning: 
+ creating table/schema other child tables without copying physical space...table and clone table use same storage space.
+ 
+ Not possible to clone temp table to permenant table.
+ 
+swapping: 
+ 
+   - meta data operations copy from prod and dev as example. 
+   alter table1
+   swap with table2
+ 
+Feature			    Cloning													Swapping
+Purpose				Create a copy of data for testing, analysis, etc.		Exchange data between two tables for deployment = dev to prod. Release process.
+Data Duplication	Does not duplicate data until changes are made.			No duplication; it simply swaps references.
+Use Cases			Testing environments, data analysis, backups.			Deploying new versions, quick rollbacks.
+Speed				Instantaneous, depending on data size (no physical copy).Very quick, as it involves metadata updates only.
+ 
+   
+Data sharing: Data to be shared across different snowflake account, without actual data copy. Helps for realtime data access to across departments, 
+business units in the organization. No actual data movement, reduce data redundancy..etc.
+
+
+Best Practices - Guidelines
+
+	Virtual warehouse:   Enable - Auto suspend, Auto Resume, apropriate timeouts, Apropriate size of VM, 
+	Table Design: Using table type as needed. (Staging area as transient table, production table - permanant. Dev work - use transient tables.)
+	              Proper data type - define a varchar length.  Set cluster only if needed for large tables. any table scan takes maxiumum time.   
+	Monitoring: Pay as we use, storage/compute
+	Retention Period: may not need data retention same across all table types.
+					  Staging Db/transient tables can have zero retention periods.
+					  Prod Db's have 4-7 days. 1 day minimum. 
+					  Large tables - use transient table..example 20 Gb tables...keep 0 days of retention or minimum retention. 
+
+Access Controls:
+  Dictionary access
+  Role Based Access - role base access is possible
+
+Dynamic Data masking:  PII data masking in snowflake
+ - return only masked data at column.
+ - dynamic data masking role
+ - OR use ENCRYPT Function for specific columns. 
+ - Row access policy for authorised users.
+
+Data sampling: Just need some part of table rows instead of full data from original for dev/analysis
+ - row base method  - with percentage based. Small tables not much recomended.
+   create or replace table sample1_rwo_table as
+   select * from original_tab
+   sample row (1) seed(27) ;
+ - block method or system method : with percentage on every micro partitions. Applicable for large tables and good choice.
+   create or replace table sample1_rwo_table as
+   select * from original_tab
+   sample system (1) seed(27) ;
+   
+Role			Importance											Use
+ACCOUNTADMIN	Highest level; full control over the account.		Manages users, roles, warehouses, and databases.
+SYSADMIN		For data engineers and administrators.				Creates and manages databases, warehouses, and schemas.
+SECURITYADMIN	Focused on security and access management.			Manages roles, users, and permissions.
+USERADMIN		Manages user accounts and roles.					Creates and assigns roles to users.
+DATAANALYST		For users primarily analyzing data.					Runs queries and creates reports; limited data modification.
+DATAENGINEER	For users responsible for data modeling and ETL.	Creates and modifies tables, views, and stages.
+DATA_SCIENTIST	Focuses on advanced analytics and modeling.			Accesses data for analysis; runs complex queries/models.
+CUSTOM_ROLE		Tailored to meet specific organizational needs.		Offers flexibility by allowing custom privileges.
+READ_ONLY		Provides access to data without modification rights.Ideal for users needing to analyze data without changes.
+ 
+ 
+streams --
+
+-- Data stream - Carry table inserts, updates, deletes from source to target after the onetime load.
+-- just similar to CDC.  This will have more additional data METADATA$ACTION, METADATA$UPDATE and METADATA$ROW_ID.  Not stored physically
+	
+1. Separation of Compute and Storage
+Elastic Scaling: Snowflake separates storage from compute, allowing organizations to scale each independently. 
+This means you can adjust compute resources based on workload without affecting storage costs.
+
+2. Performance Optimization
+Automatic Scaling: Snowflake automatically adjusts compute resources based on query demand, ensuring high performance even during peak usage.
+Multi-Cluster Warehouses: Support for multiple clusters allows for concurrent workloads without performance degradation.
+
+3. Zero Copy Cloning
+Enables instantaneous cloning of databases, schemas, and tables without physically duplicating data. This feature is ideal for testing 
+and development scenarios.
+
+4. Data Sharing Capabilities
+Securely share live data across different Snowflake accounts without data duplication. This fosters collaboration and data accessibility 
+among teams and partners.
+
+5. Support for Semi-Structured Data
+Snowflake natively supports semi-structured data formats like JSON, Avro, and Parquet, allowing users to store and query diverse data types 
+seamlessly.
+
+6. Built-In Security Features
+Robust security protocols, including end-to-end encryption, role-based access control, and network security, help ensure data privacy and 
+compliance.
+
+7. User-Friendly Interface
+Intuitive web-based interface and SQL support make it accessible for users with varying levels of technical expertise, enabling analysts to
+ perform complex queries easily.
+ 
+8. Time Travel and Data Retention
+Time travel allows users to access historical data and recover deleted records, providing flexibility for audits and data recovery.
+
+9. Automatic Maintenance
+Snowflake handles maintenance tasks like backups, updates, and scaling automatically, reducing the operational burden on IT teams.
+
+10. Integration with Modern Tools
+Easy integration with various business intelligence (BI) tools, ETL tools, and data integration platforms enables a seamless data pipeline.
+
+11. Cost Efficiency
+Pay-as-you-go pricing model allows organizations to pay only for the storage and compute resources they actually use, making it cost-effective 
+for a wide range of workloads.
+
+12. Concurrency Management
+Snowflake can handle multiple concurrent users and queries without performance degradation, which is crucial for organizations with many data
+ consumers.
+ 
+ 
+ Benefits of Snowflake Orchestration using streams, tasks and snowpipe:
+ 
+Snowpipe ingests real-time data into a source table. A Snowflake stream defined on the source table keeps track of the changes. 
+A Snowflake task reads the streams every few minutes to update the aggregate table which is read by a real-time dashboard.
+A batch job makes changes to a ‘Customer’ table in the raw layer. The changed rows captured by the stream are then processed by a task to 
+update the customer dimension in the data warehouse.
+The main benefit of using Streams and Tasks together is that no external ELT tool is required for data processing and orchestration thereby 
+reducing licence and infrastructure costs.
+
+Copy option
+
+ON ERROR - Continue, abort_statement- default), skip_file, skip_file_n(n can be number of errors), skip_file_n%(% of records), TRUNCATECOLUMN, size_column
+VALIDATION_MODE = RETURN_ERRORS, RETURN_5_ROWS
+SIZE_LIMIT=20000;
+RETURN_FAILED_ONLY = TRUE/FALSE
+TRUNCATECOLUMNS = TRUE/FLASE
+match_column_name = 'CASE_INSENSITIVE'
+match_column_name = 'CASE_SENSITIVE'
+ENFORCE_LENGTH = TRUE  - to check string data match to length of column. 

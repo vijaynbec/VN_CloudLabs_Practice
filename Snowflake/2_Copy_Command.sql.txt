@@ -1,0 +1,33 @@
+// Database to manage create DB
+
+CREATE OR REPLACE DATABASE OUR_FIRST_DB;
+
+// create schema
+
+CREATE OR REPLACE SCHEMA external_stages;
+
+// Creating ORDERS table
+
+   CREATE OR REPLACE TABLE OUR_FIRST_DB.PUBLIC.ORDERS (
+    ORDER_ID VARCHAR(30),
+
+    SELECT * FROM OUR_FIRST_DB.PUBLIC.ORDERS;
+    
+// listdown the public stage 
+list @MANAGE_DB.EXTERNAL_STAGES.AWS_STAGE
+    
+// Single file copy First copy command
+COPY INTO OUR_FIRST_DB.PUBLIC.ORDERS
+    FROM @MANAGE_DB.EXTERNAL_STAGES.AWS_STAGE
+    file_format = (type = csv field_delimiter=',' skip_header=1)
+    files=('OrderDetails.csv');
+
+// load by file name patterns
+
+COPY INTO OUR_FIRST_DB.PUBLIC.ORDERS
+    FROM @MANAGE_DB.EXTERNAL_STAGES.AWS_STAGE
+    file_format = (type = csv field_delimiter=',' skip_header=1)
+    PATTERN ='.*Order.*\\.csv';
+    
+
+    

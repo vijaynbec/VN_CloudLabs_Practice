@@ -1,0 +1,81 @@
+// Database to manage stage objects, fileformats etc.
+
+CREATE OR REPLACE DATABASE MANAGE_DB;
+
+CREATE OR REPLACE SCHEMA external_stages;
+
+
+// Creating external stage
+
+CREATE OR REPLACE STAGE MANAGE_DB.external_stages.aws_stage
+    url='s3://bucketsnowflakes3'
+    credentials=(aws_key_id='ABCD_DUMMY_ID' aws_secret_key='1234abcd_key');
+
+    ------------------------------------
+    -- can create storage integration then use that to create the external stage
+    -- create a IAm role in AWS account
+  --   CREATE STORAGE INTEGRATION my_s3_integration
+  -- TYPE = 'EXTERNAL_STAGE'
+  -- STORAGE_PROVIDER = 'S3'
+  -- ENABLED = TRUE
+  -- STORAGE_AWS_IAM_USER_ARN = 'arn:aws:iam::account-id:user/my-user'
+  -- STORAGE_AWS_EXTERNAL_ID = 'your-external-id'
+  -- STORAGE_ALLOWED_LOCATIONS = ('s3://your-bucket-name/')
+  -- STORAGE_BLOCKED_LOCATIONS = ('s3://your-bucket-name/restricted-path/');
+
+-- STORAGE_AWS_IAM_USER_ARN: The ARN of the IAM user or role.
+-- STORAGE_AWS_EXTERNAL_ID: A unique identifier to help prevent the confused deputy problem.
+-- STORAGE_ALLOWED_LOCATIONS: Specifies which locations Snowflake can access.
+-- STORAGE_BLOCKED_LOCATIONS: Specifies any locations that should not be accessed.
+
+--- create stage using storage integration
+
+-- CREATE STAGE my_external_stage
+--   URL = 's3://your-bucket-name/path/'
+--   STORAGE_INTEGRATION = my_s3_integration;
+
+
+    
+    
+    // dummy stage
+CREATE OR REPLACE STAGE MANAGE_DB.external_stages.aws_stage3MANAGE_DB.EXTERNAL_STAGES.AWS_STAGE2
+    url='s3://snowflakeloadkfjgldjglsdummy'
+    credentials=(aws_key_id='ABCD_DUMMY_ID' aws_secret_key='1234abcd_key');
+
+
+// Description of external stage
+
+DESC STAGE MANAGE_DB.external_stages.aws_stage; 
+    
+    
+// Alter external stage   
+
+ALTER STAGE aws_stage
+    SET credentials=(aws_key_id='XYZ_DUMMY_ID' aws_secret_key='987xyz');
+    
+    
+// Publicly accessible staging area    
+
+CREATE OR REPLACE STAGE MANAGE_DB.external_stages.aws_stage
+    url='s3://bucketsnowflakes3';
+
+// List files in stage
+
+LIST @aws_stage;
+
+######################################################
+// Creating ORDERS table
+
+CREATE OR REPLACE TABLE OUR_FIRST_DB.PUBLIC.ORDERS (
+    ORDER_ID VARCHAR(30),
+    AMOUNT INT,
+    PROFIT INT,
+    QUANTITY INT,
+    CATEGORY VARCHAR(30),
+    SUBCATEGORY VARCHAR(30));
+    
+SELECT * FROM OUR_FIRST_DB.PUBLIC.ORDERS;
+
+COPY INTO OUR_FIRST_DB.PUBLIC.ORDERS
+    FROM @aws_stage
+    file_format = (type = csv field_delimiter=',' skip_header=1);

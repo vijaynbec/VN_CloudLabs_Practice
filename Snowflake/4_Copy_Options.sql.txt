@@ -1,0 +1,51 @@
+
+
+
+
+
+-- Use ON_ERROR options to define how to handle errors during the load process.
+     continue
+     skip_file
+     skil_file_2
+     return_null
+     aobort_statement
+-- Set VALIDATION_MODE to control whether data is validated without loading or both validated and loaded.
+      validate
+      return_loaded
+      return_not_loaded
+-- Utilize the WHERE clause to filter which rows to load based on specific conditions.
+      conditional data loading with where clouse 
+
+
+create or replace table employees
+(customer_id int,
+first_name varchar(50),
+last_name varchar(50),
+email varchar(50),
+age int,
+department varchar(50));
+
+create or replace stage AWS_STAGE_ASSIGN url = 's3://snowflake-assignments-mc/copyoptions/example2'
+
+create or replace file format AWS_FORAM_ASSIGN
+TYPE = CSV
+FIELD_DELIMITER=','
+SKIP_HEADER=1;
+
+list @COPY_DB.PUBLIC.AWS_STAGE_ASSIGN
+
+--Use the copy option to only validate if there are errors and if yes what are.
+copy into employees
+from @COPY_DB.PUBLIC.AWS_STAGE_ASSIGN
+file_format = COPY_DB.PUBLIC.EMP_FORMAT
+validation_mode = return_errors;
+-- Data truncation character length limit exceed 50
+
+--What option could you use to load that record anyways and just truncate 
+copy into employees
+from @COPY_DB.PUBLIC.AWS_STAGE_ASSIGN
+file_format = COPY_DB.PUBLIC.EMP_FORMAT
+ON_ERROR =  CONTINUE
+TRUNCATECOLUMNS = true; 
+
+select * from employees

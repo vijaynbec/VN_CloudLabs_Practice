@@ -1,0 +1,221 @@
+-- Data stream - Carry table inserts, updates, deletes from source to target after the onetime load.
+-- just similar to CDC.  This will have more additional data METADATA$ACTION, METADATA$UPDATE and METADATA$ROW_ID.  Not stored physically
+
+CREATE OR REPLACE TRANSIENT DATABASE STREAMS_DB;
+
+-- Create example table 
+create or replace table sales_raw_staging(
+  id varchar,
+  product varchar (40),
+  price varchar (40),
+  amount varchar (40),
+  store_id varchar (40));
+
+-- insert values 
+insert into sales_raw_staging 
+    values
+        (1,'Banana',1.99,1,1),
+        (2,'Lemon',0.99,1,1),
+        (3,'Apple',1.79,1,2),
+        (4,'Orange Juice',1.89,1,2),
+        (5,'Cereals',5.98,2,1); 
+
+create or replace table store_table(
+  store_id number,
+  location varchar,
+  employees number);
+
+
+INSERT INTO STORE_TABLE VALUES(1,'Chicago',33);
+INSERT INTO STORE_TABLE VALUES(2,'London',12);
+
+create or replace table sales_final_table(
+  id int,
+  product varchar,
+  price number,
+  amount int,
+  store_id int,
+  location varchar,
+  employees int);
+
+  INSERT INTO sales_final_table 
+    SELECT 
+    SA.id,
+    SA.product,
+    SA.price,
+    SA.amount,
+    ST.STORE_ID,
+    ST.LOCATION, 
+    ST.EMPLOYEES 
+    FROM SALES_RAW_STAGING SA
+    JOIN STORE_TABLE ST ON ST.STORE_ID=SA.STORE_ID ;
+
+select * from sales_final_table;   -- 5 rows
+select * from store_table          -- 2 rows  
+select * from sales_raw_staging    -- 5 rows
+    
+-- Create a stream object
+create or replace stream sales_stream on table sales_raw_staging;
+
+SHOW STREAMS;
+DESC STREAM sales_stream;
+
+-- insert 2 values in staging
+insert into sales_raw_staging  
+    values
+        (6,'Mango',1.99,1,2),
+        (7,'Garlic',0.99,1,1);
+
+-- Get changes on data using stream (INSERTS)
+select * from sales_stream;
+
+select * from sales_raw_staging;
+                
+select * from sales_final_table;  
+
+-- Consume stream object  - add the rows from stream
+INSERT INTO sales_final_table 
+    SELECT 
+    SA.id,
+    SA.product,
+    SA.price,
+    SA.amount,
+    ST.STORE_ID,
+    ST.LOCATION, 
+    ST.EMPLOYEES 
+    FROM SALES_STREAM SA
+    JOIN STORE_TABLE ST ON ST.STORE_ID=SA.STORE_ID ;
+
+-- Get changes on data using stream (INSERTS)
+select * from sales_stream;  -- 0 records
+select * from sales_final_table;  -- additional 2 more records
+
+
+        
+-- ******* UPDATE 1 ********
+
+SELECT * FROM SALES_RAW_STAGING;     
+        
+SELECT * FROM SALES_STREAM;
+
+UPDATE SALES_RAW_STAGING
+SET PRODUCT ='Potato' WHERE PRODUCT = 'Banana1'
+
+
+merge into SALES_FINAL_TABLE F      -- Target table to merge changes from source table
+using SALES_STREAM S                -- Stream that has captured the changes
+   on  f.id = s.id                 
+when matched 
+    and S.METADATA$ACTION ='INSERT'
+    and S.METADATA$ISUPDATE ='TRUE'        -- Indicates the record has been updated 
+    then update 
+    set f.product = s.product,
+        f.price = s.price,
+        f.amount= s.amount,
+        f.store_id=s.store_id;
+        
+
+SELECT * FROM SALES_FINAL_TABLE
+
+SELECT * FROM SALES_RAW_STAGING;     
+        
+SELECT * FROM SALES_STREAM;
+
+-- ******* UPDATE 2 ********
+
+UPDATE SALES_RAW_STAGING
+SET PRODUCT ='Green apple' WHERE PRODUCT = 'Apple';
+
+
+merge into SALES_FINAL_TABLE F      -- Target table to merge changes from source table
+using SALES_STREAM S                -- Stream that has captured the changes
+   on  f.id = s.id                 
+when matched 
+    and S.METADATA$ACTION ='INSERT'
+    and S.METADATA$ISUPDATE ='TRUE'        -- Indicates the record has been updated 
+    then update 
+    set f.product = s.product,
+        f.price = s.price,
+        f.amount= s.amount,
+        f.store_id=s.store_id;
+
+
+SELECT * FROM SALES_FINAL_TABLE;
+
+SELECT * FROM SALES_RAW_STAGING;     
+        
+SELECT * FROM SALES_STREAM;
+
+----------------------update streams ------------
+SELECT * FROM SALES_RAW_STAGING;  
+SELECT * FROM SALES_STREAM;
+
+UPDATE SALES_RAW_STAGING
+SET PRODUCT ='Green apple' WHERE PRODUCT = 'Lemon'
+
+merge into SALES_FINAL_TABLE F      -- Target table to merge changes from source table
+using SALES_STREAM S                -- Stream that has captured the changes
+   on  f.id = s.id                 
+when matched 
+    and S.METADATA$ACTION ='INSERT'
+    and S.METADATA$ISUPDATE ='TRUE'        -- Indicates the record has been updated 
+    then update 
+    set f.product = s.product,
+        f.price = s.price,
+        f.amount= s.amount,
+        f.store_id=s.store_id;
+
+SELECT * FROM SALES_FINAL_TABLE;
+
+------------ delete Cereals
+
+DELETE FROM SALES_RAW_STAGING
+WHERE PRODUCT = 'Cereals';
+
+SELECT * FROM SALES_STREAM;
+
+merge into SALES_FINAL_TABLE F      -- Target table to merge changes from source table
+using SALES_STREAM S                -- Stream that has captured the changes
+   on  f.id = s.id          
+when matched 
+    and S.METADATA$ACTION ='DELETE' 
+    and S.METADATA$ISUPDATE = 'FALSE'
+    then delete  
+
+SELECT * FROM SALES_FINAL_TABLE;
+
+--------------Making all inserts, updates and deletes all at once
+
+******* Process UPDATE,INSERT & DELETE simultaneously  ********                
+        
+    
+        
+
+   
+        
+merge into SALES_FINAL_TABLE F      -- Target table to merge changes from source table
+USING ( SELECT STRE.*,ST.location,ST.employees
+        FROM SALES_STREAM STRE
+        JOIN STORE_TABLE ST
+        ON STRE.store_id = ST.store_id
+       ) S
+ON F.id=S.id
+when matched                        -- DELETE condition
+    and S.METADATA$ACTION ='DELETE' 
+    and S.METADATA$ISUPDATE = 'FALSE'
+    then delete                   
+when matched                        -- UPDATE condition
+    and S.METADATA$ACTION ='INSERT' 
+    and S.METADATA$ISUPDATE  = 'TRUE'       
+    then update 
+    set f.product = s.product,
+        f.price = s.price,
+        f.amount= s.amount,
+        f.store_id=s.store_id
+when not matched 
+    and S.METADATA$ACTION ='INSERT'
+    then insert 
+    (id,product,price,store_id,amount,employees,location)
+    values
+    (s.id, s.product,s.price,s.store_id,s.amount,s.employees,s.location)
+        

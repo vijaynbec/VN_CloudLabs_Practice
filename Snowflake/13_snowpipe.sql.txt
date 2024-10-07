@@ -1,0 +1,69 @@
+
+SHOW PARAMETERS LIKE 'ENABLE_ENCRYPTION';
+-- Create DB
+create or replace database snowpipe;
+
+-- create table
+CREATE OR REPLACE TABLE employees (
+  id INT,
+  first_name STRING,
+  last_name STRING,
+  email STRING,
+  location STRING,
+  department STRING
+  )
+-- create file format
+  
+CREATE OR REPLACE file format csv_fileformat
+    type = csv
+    field_delimiter = ','
+    skip_header = 1
+    null_if = ('NULL','null')
+    empty_field_as_null = TRUE;
+
+-- create storage integration create ontime it does change external id for every  execution
+-- create or replace storage integration s3_int_awssnow2
+--   TYPE = EXTERNAL_STAGE
+--   STORAGE_PROVIDER = S3
+--   ENABLED = TRUE 
+--   STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::463470960120:role/Snow-flake-S3Access'
+--   STORAGE_ALLOWED_LOCATIONS = ('s3://mysnowflake202420242024/csv/', 's3://mysnowflake202420242024/json/')
+--    COMMENT = 'This an optional comment - first comment'
+
+   -- describe storage integration
+   desc storage integration s3_int_awssnow2
+
+   -- create stage object
+CREATE OR REPLACE stage snowpipe_stage
+    URL = 's3://mysnowflake202420242024/csv/snowpipe/'
+    STORAGE_INTEGRATION = s3_int_awssnow2
+    FILE_FORMAT = csv_fileformat
+-- list stage
+list @snowpipe_stage
+
+-- create pipe
+
+CREATE OR REPLACE pipe snowpipe_employee
+auto_ingest = TRUE
+AS
+COPY INTO employees
+FROM @SNOWPIPE_STAGE
+
+SELECT count(*) FROM PUBLIC.employees; 
+desc pipe snowpipe_employee;
+
+ALTER PIPE snowpipe_employee refresh
+
+desc stage SNOWPIPE.PUBLIC.SNOWPIPE_STAGE
+
+-- find the snowpipe loaded in last two hrs
+SELECT * FROM TABLE(VALIDATE_PIPE_LOAD(
+    PIPE_NAME => 'SNOWPIPE.PUBLIC.SNOWPIPE_EMPLOYEE',
+    START_TIME => DATEADD(HOUR,-2,CURRENT_TIMESTAMP())))
+
+// COPY command history from table to see error massage
+
+SELECT * FROM TABLE (INFORMATION_SCHEMA.COPY_HISTORY(
+   table_name  =>  'SNOWPIPE.PUBLIC.EMPLOYEES',
+   START_TIME =>DATEADD(HOUR,-2,CURRENT_TIMESTAMP())))
+  

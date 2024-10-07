@@ -1,0 +1,50 @@
+select * from movie_titles
+
+create or replace table clone_movie_titles
+clone movie_titles;
+
+select * from clone_movie_titles
+
+update clone_movie_titles set type='updated'
+
+create or replace table clone_movie_titles
+clone movie_titles;
+
+create or replace TRANSIENT table TRANS_clone_movie_titles
+clone movie_titles;
+
+create or replace TEMPORARY table TEMP_clone_movie_titles
+clone movie_titles;
+-- from actual table to temp and transient table will work..no other ways.
+select * from TEMP_CLONE_MOVIE_TITLES
+
+select * from TRANS_CLONE_MOVIE_TITLES
+
+select * from clone_movie_titles
+
+-- clone can also be used by time travel by offset or query ids
+
+-- swap
+alter table TRANS_CLONE_MOVIE_TITLES
+swap with clone_movie_titles
+
+-- demo
+CREATE OR REPLACE TABLE AWS_DB.PUBLIC.SUPPLIER
+AS
+SELECT * FROM "SNOWFLAKE_SAMPLE_DATA"."TPCH_SF1"."SUPPLIER";
+
+create or replace table supplier_clone1
+clone supplier;
+
+UPDATE SUPPLIER_CLONE
+SET S_PHONE='###';
+
+-- update sql id 01b745ce-030a-9115-0008-c2570002b246
+
+select * from supplier_clone
+
+-- create another clone from before last update on main table
+CREATE TABLE SUPPLIER_CLONE_CLONE CLONE SUPPLIER_CLONE BEFORE (statement => '01b745ce-030a-9115-0008-c2570002b246');
+
+SELECT * FROM SUPPLIER_CLONE_CLONE
+

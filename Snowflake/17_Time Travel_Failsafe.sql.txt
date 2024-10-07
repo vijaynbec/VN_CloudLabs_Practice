@@ -1,0 +1,45 @@
+  -- based on timestamp
+  -- select * from table1 AT/before(TIMESTAMP => timstamp)
+  -- based on offset
+  -- select * from table1 AT(OFFSET => -10*60)
+  -- based on query id
+  -- select * from table before (STATEMENT => query_id)
+  -- undrop a table/object/schema's
+  -- undrop table table_name  
+
+
+USE ROLE ACCOUNTDMIN;
+USE DATABASE DEMO_DB;
+USE WAREHOUSE COMPUTE_WH;
+
+create or replace database demp_db;
+ 
+CREATE OR REPLACE TABLE DEMp_DB.PUBLIC.PART
+AS
+SELECT * FROM "SNOWFLAKE_SAMPLE_DATA"."TPCH_SF1"."PART";
+
+SELECT * FROM PART
+ORDER BY P_MFGR DESC;
+
+UPDATE PUBLIC.PART
+SET P_MFGR='Manufacturer#CompanyX'
+WHERE P_MFGR='Manufacturer#5';
+
+-- validate update info on table
+SELECT * FROM PART
+ORDER BY P_MFGR DESC;
+
+-- travel back by query id - 01b74040-030a-8f4e-0008-c257000260be
+select * from PART at(statement => '01b74040-030a-8f4e-0008-c257000260be')
+select * from PART before(statement => '01b74040-030a-8f4e-0008-c257000260be')
+-- travel back by offset
+select * from PART AT(OFFSET => -1*60)
+
+CREATE DATABASE TIMETRAVEL_EXERCISE;
+CREATE SCHEMA TIMETRAVEL_EXERCISE.COMPANY_X;
+CREATE TABLE CUSTOMER AS
+SELECT * FROM SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.CUSTOMER
+LIMIT 500;
+DROP SCHEMA TIMETRAVEL_EXERCISE.COMPANY_X;
+
+UNDROP SCHEMA TIMETRAVEL_EXERCISE.COMPANY_X;

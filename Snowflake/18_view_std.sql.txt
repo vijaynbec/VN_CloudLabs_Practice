@@ -1,0 +1,117 @@
+
+-- Create database & table --
+CREATE OR REPLACE DATABASE CUSTOMER_DB;
+
+USE ROLE ACCOUNTADMIN;
+
+CREATE OR REPLACE TABLE CUSTOMER_DB.public.customers (
+   id int,
+   first_name string,
+  last_name string,
+  email string,
+  gender string,
+  Job string,
+  Phone string);
+
+    
+// Stage and file format
+CREATE OR REPLACE FILE FORMAT csv_file
+    type = csv
+    field_delimiter = ','
+    skip_header = 1;
+    
+CREATE OR REPLACE STAGE time_travel_stage
+    URL = 's3://data-snowflake-fundamentals/time-travel/'
+    file_format = csv_file;
+    
+LIST  @time_travel_stage;
+
+
+// Copy data and insert in table
+COPY INTO CUSTOMER_DB.public.customers
+FROM @time_travel_stage
+files = ('customers.csv');
+
+SELECT * FROM  CUSTOMER_DB.PUBLIC.CUSTOMERS;
+
+-- Create VIEW -- 
+CREATE OR REPLACE VIEW CUSTOMER_DB.PUBLIC.CUSTOMER_VIEW AS
+SELECT 
+FIRST_NAME,
+LAST_NAME,
+EMAIL
+FROM CUSTOMER_DB.PUBLIC.CUSTOMERS
+WHERE JOB != 'DATA SCIENTIST'; 
+
+select * from customer_view;
+
+-- Grant usage & SELECT --
+GRANT USAGE ON DATABASE CUSTOMER_DB TO ROLE PUBLIC;
+GRANT USAGE ON SCHEMA CUSTOMER_DB.PUBLIC TO ROLE PUBLIC;
+GRANT SELECT ON TABLE CUSTOMER_DB.PUBLIC.CUSTOMERS TO ROLE PUBLIC;
+GRANT SELECT ON VIEW CUSTOMER_DB.PUBLIC.CUSTOMER_VIEW TO ROLE PUBLIC;
+
+
+SHOW VIEWS LIKE '%CUSTOMER%';
+
+
+
+
+
+-- Create SECURE VIEW -- 
+
+CREATE OR REPLACE SECURE VIEW CUSTOMER_DB.PUBLIC.CUSTOMER_VIEW_SECURE AS
+SELECT 
+FIRST_NAME,
+LAST_NAME,
+EMAIL
+FROM CUSTOMER_DB.PUBLIC.CUSTOMERS
+WHERE JOB != 'DATA SCIENTIST' 
+
+GRANT SELECT ON VIEW CUSTOMER_DB.PUBLIC.CUSTOMER_VIEW_SECURE TO ROLE PUBLIC;
+
+SHOW VIEWS LIKE '%CUSTOMER%';
+
+-- only secure view can be shared, not the normal/standard views
+-- Create masking policy called name that is showing '***' instead of the original varchar value
+
+create or replace masking policy name
+as (val varchar) returns varchar ->
+case 
+when current_role() in ('ANALYST_MASKED') then val
+else '*****'
+end;
+
+desc masking policy name;
+
+-- apply the masking policy on customer table
+ALTER TABLE IF EXISTS CUSTOMERS MODIFY COLUMN last_name 
+SET MASKING POLICY name;
+
+
+
+SELECT * FROM CUSTOMERS;  -- last name is masked when role is other tha ANALYST_MASKED
+-- validate as ANALYST FULL
+USE ROLE ANALYST_MASKED;
+SELECT * FROM CUSTOMERS;
+
+-- when we unset a policy on the table
+
+ALTER TABLE IF EXISTS CUSTOMERS MODIFY COLUMN last_name 
+UNSET MASKING POLICY;
+
+SELECT * FROM CUSTOMERS;
+
+--Alter the policy so that the last two characters are shown and before that only '***' (example: ***er)
+alter masking policy name set body ->
+            case
+            when current_role() in ('ANALYST_MASKED') then val
+            else CONCAT('***',RIGHT(val,2))
+            end;
+
+            ALTER TABLE IF EXISTS CUSTOMERS MODIFY COLUMN first_name 
+SET MASKING POLICY name;  
+
+
+SELECT * FROM CUSTOMERS;
+

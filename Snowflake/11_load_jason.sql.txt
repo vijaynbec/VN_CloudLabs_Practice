@@ -1,0 +1,69 @@
+-- Create stage
+-- load at raw table - only one column - Variant data type
+-- analyse and prase
+-- flatten and load
+
+-----------PART 1 -------------------------------
+-- create db if doesnt exist
+-- create stage object s3://snowflake-assignments-mc/unstructureddata/'
+
+create stage aws_stage_jason
+url = 's3://snowflake-assignments-mc/unstructureddata/';
+-- create file format type=json
+create file format json_format
+TYPE = JSON;
+-- create JASON_RAW table with raw column with varient type
+
+ create or replace table jason_raw
+(raw_column variant);
+
+copy into jason_raw 
+from @EXERCISE_DB.PUBLIC.AWS_STAGE_JASON
+file_format = EXERCISE_DB.PUBLIC.JSON_FORMAT;
+
+select * from jason_raw;
+
+-- desplay the se;ect columns based on need
+select raw_column:department,$1:age,
+       raw_column:Skills from EXERCISE_DB.PUBLIC.JASON_RAW;
+
+select raw_column:department as Department,$1:age as Age,
+       raw_column:Skills as Skill from EXERCISE_DB.PUBLIC.JASON_RAW;
+
+-----------PART 2-------------------------Nasted Data------
+select * from jason_raw;
+-- pull the information of Skills
+select  raw_column:id::int  as ID_Number,
+        raw_column:first_name::STRING  as FIRST_NAME,
+        raw_column:last_name::STRING  as LAST_NAME,
+        $1:Skills[0]::STRING as Skill1,
+        $1:Skills[1]::STRING as Skill2,
+        $1:Skills[1]::STRING as Skill3,
+            from jason_raw;
+
+create or replace table Skill_Table As
+(select  raw_column:id::int  as ID_Number,
+        raw_column:first_name::STRING  as FIRST_NAME,
+        raw_column:last_name::STRING  as LAST_NAME,
+        $1:Skills[0]::STRING as Skill1,
+        $1:Skills[1]::STRING as Skill2,
+        $1:Skills[1]::STRING as Skill3,
+            from jason_raw);
+    select * from Skill_Table;
+--------------------look up number of skills each have
+select  raw_column:id::int  as ID_Number,
+        raw_column:first_name::STRING  as FIRST_NAME,
+        raw_column:last_name::STRING  as LAST_NAME,
+        $1:Skills[0]::STRING as Skill1,
+        $1:Skills[1]::STRING as Skill2,
+        $1:Skills[1]::STRING as Skill3,
+            from jason_raw;
+-- Use by flattern fucnction 
+select  raw_column:id::int  as ID_Number,
+        raw_column:first_name::STRING  as FIRST_NAME,
+        raw_column:last_name::STRING  as LAST_NAME,
+        f.value::Skills[0]::STRING as Skill1,
+        f.value::Skills[1]::STRING as Skill2,
+        f.value::Skills[2]::STRING as Skill3
+        from jason_raw,  
+        table(flatten(AWS_STAGE_JASON;Skills)) f;

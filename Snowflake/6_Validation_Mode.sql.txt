@@ -1,0 +1,286 @@
+---- VALIDATION_MODE ----
+// Prepare database & table
+CREATE OR REPLACE DATABASE COPY_DB;
+
+
+CREATE OR REPLACE TABLE  COPY_DB.PUBLIC.ORDERS (
+    ORDER_ID VARCHAR(30),
+    AMOUNT VARCHAR(30),
+    PROFIT INT,
+    QUANTITY INT,
+    CATEGORY VARCHAR(30),
+    SUBCATEGORY VARCHAR(30));
+
+// Prepare stage object
+CREATE OR REPLACE STAGE COPY_DB.PUBLIC.aws_stage_copy
+    url='s3://snowflakebucket-copyoption/size/';
+  
+LIST @COPY_DB.PUBLIC.aws_stage_copy;
+  
+    
+ //Load data using copy command
+COPY INTO COPY_DB.PUBLIC.ORDERS
+    FROM @aws_stage_copy
+    file_format= (type = csv field_delimiter=',' skip_header=1)
+    pattern='.*Order.*'
+    VALIDATION_MODE = RETURN_ERRORS
+    
+    
+COPY INTO COPY_DB.PUBLIC.ORDERS
+    FROM @aws_stage_copy
+    file_format= (type = csv field_delimiter=',' skip_header=1)
+    pattern='.*Order.*'
+   VALIDATION_MODE = RETURN_5_ROWS 
+
+----------------------------Assignment-----------
+-- Create emp table
+create  or replace table employees (
+  customer_id int,
+  first_name varchar(50),
+  last_name varchar(50),
+  email varchar(50),
+  age int,
+  department varchar(50));
+---- create new eployee stage 
+create or replace stage emp_stage
+url="s3://snowflake-assignments-mc/copyoptions/example1"
+
+--- create file format
+create or replace file format emp_format
+TYPE = CSV
+FIELD_DELIMITER=','
+SKIP_HEADER=1;
+
+  desc file format emp_format;
+  desc stage emp_stage;
+  list @COPY_DB.PUBLIC.EMP_STAGE;
+  -- copy and validation
+copy into COPY_DB.PUBLIC.EMPLOYEES
+from @COPY_DB.PUBLIC.EMP_STAGE
+file_format = COPY_DB.PUBLIC.EMP_FORMAT
+validation_mode = return_errors
+
+-- copy regardless of errors
+copy into COPY_DB.PUBLIC.EMPLOYEES
+from @COPY_DB.PUBLIC.EMP_STAGE
+file_format = COPY_DB.PUBLIC.EMP_FORMAT
+ON_ERROR = CONTINUE;
+
+-- Result 121 records loaded out of 122. Error us Numeric Value '-' is not allowed. 
+---------------------------------------------------------------------------------------------
+   
+---- Use files with errors ----
+CREATE OR REPLACE STAGE COPY_DB.PUBLIC.aws_stage_reject_return
+    url='s3://snowflakebucket-copyoption/returnfailed/';
+
+LIST @COPY_DB.PUBLIC.aws_stage_reject_return;    
+
+
+
+COPY INTO COPY_DB.PUBLIC.ORDERS
+    FROM @aws_stage_reject_return
+    file_format= (type = csv field_delimiter=',' skip_header=1)
+    pattern='.*Order.*'
+    VALIDATION_MODE = RETURN_ERRORS
+
+-------------- Working with error results -----------
+
+---- 1) Saving rejected files after VALIDATION_MODE ---- 
+
+CREATE OR REPLACE TABLE  COPY_DB.PUBLIC.ORDERS (
+    ORDER_ID VARCHAR(30),
+    AMOUNT VARCHAR(30),
+    PROFIT INT,
+    QUANTITY INT,
+    CATEGORY VARCHAR(30),
+    SUBCATEGORY VARCHAR(30));
+
+
+COPY INTO COPY_DB.PUBLIC.ORDERS
+    FROM @aws_stage_reject_return
+    file_format= (type = csv field_delimiter=',' skip_header=1)
+    pattern='.*Order.*'
+    VALIDATION_MODE = RETURN_ERRORS;
+
+-- last query id - 01b73443-030a-80c2-0008-c2570001e1c6
+// Storing rejected /failed results in a table
+CREATE OR REPLACE TABLE rejected AS 
+select rejected_record from table(result_scan('01b73443-030a-80c2-0008-c2570001e1c6'));
+
+INSERT INTO rejected
+select rejected_record from table(result_scan('01b73443-030a-80c2-0008-c2570001e1c6'));
+
+SELECT * FROM rejected;
+
+
+
+
+---- 2) Saving rejected files without VALIDATION_MODE ---- 
+
+
+
+
+
+COPY INTO COPY_DB.PUBLIC.ORDERS
+    FROM @aws_stage_copy
+    file_format= (type = csv field_delimiter=',' skip_header=1)
+    pattern='.*Order.*'
+    ON_ERROR=CONTINUE
+  
+  
+select * from table(validate(orders, job_id => '_last'));
+
+
+---- 3) Working with rejected records ---- 
+
+
+
+SELECT REJECTED_RECORD FROM rejected;
+
+CREATE OR REPLACE TABLE rejected_values as
+SELECT 
+SPLIT_PART(rejected_record,',',1) as ORDER_ID, 
+SPLIT_PART(rejected_record,',',2) as AMOUNT, 
+SPLIT_PART(rejected_record,',',3) as PROFIT, 
+SPLIT_PART(rejected_record,',',4) as QUATNTITY, 
+SPLIT_PART(rejected_record,',',5) as CATEGORY, 
+SPLIT_PART(rejected_record,',',6) as SUBCATEGORY
+FROM rejected; 
+
+
+SELECT * FROM rejected_values;
+
+--------------size limit------------
+// Prepare table and file format
+
+CREATE OR REPLACE TABLE  COPY_DB.PUBLIC.ORDERS (
+    ORDER_ID VARCHAR(30),
+    AMOUNT VARCHAR(30),
+    PROFIT INT,
+    QUANTITY INT,
+    CATEGORY VARCHAR(30),
+    SUBCATEGORY VARCHAR(30));
+    
+    
+// Prepare stage object
+CREATE OR REPLACE STAGE COPY_DB.PUBLIC.aws_stage_sizelimit
+    url='s3://snowflakebucket-copyoption/size/';
+    
+    
+// List files in stage
+LIST @aws_stage_sizelimit;
+
+
+//Load data using copy command
+COPY INTO COPY_DB.PUBLIC.ORDERS
+    FROM @aws_stage_sizelimit
+    file_format= (type = csv field_delimiter=',' skip_header=1)
+    pattern='.*Order.*'
+    SIZE_LIMIT=55001;
+
+    truncate table COPY_DB.PUBLIC.ORDERS
+  
+  ----------return to file option
+  
+// Prepare stage object
+CREATE OR REPLACE STAGE COPY_DB.PUBLIC.aws_stage_return_file
+    url='s3://snowflakebucket-copyoption/returnfailed/';
+
+    LIST @COPY_DB.PUBLIC.aws_stage_return_file
+  
+    
+ //Load data using copy command
+COPY INTO COPY_DB.PUBLIC.ORDERS
+    FROM @aws_stage_return_file
+    file_format= (type = csv field_delimiter=',' skip_header=1)
+    pattern='.*Order.*'
+    RETURN_FAILED_ONLY = TRUE
+    
+    
+    
+COPY INTO COPY_DB.PUBLIC.ORDERS
+    FROM @aws_stage_return_file
+    file_format= (type = csv field_delimiter=',' skip_header=1)
+    pattern='.*Order.*'
+    ON_ERROR =CONTINUE
+    RETURN_FAILED_ONLY = TRUE
+
+
+// Default = FALSE
+
+--------TRUNCATE COLUMNS
+CREATE OR REPLACE TABLE  COPY_DB.PUBLIC.ORDERS (
+    ORDER_ID VARCHAR(30),
+    AMOUNT VARCHAR(30),
+    PROFIT INT,
+    QUANTITY INT,
+    CATEGORY VARCHAR(10),
+    SUBCATEGORY VARCHAR(30));
+// Prepare stage object
+CREATE OR REPLACE STAGE COPY_DB.PUBLIC.aws_stage_truncatecolumns
+    url='s3://snowflakebucket-copyoption/size/';
+  
+LIST @COPY_DB.PUBLIC.aws_stage_truncatecolumns
+  
+    
+ //Load data using copy command - failes becouse the field characters limit
+COPY INTO COPY_DB.PUBLIC.ORDERS
+    FROM @aws_stage_truncatecolumns
+    file_format= (type = csv field_delimiter=',' skip_header=1)
+    pattern='.*Order.*'
+
+
+COPY INTO COPY_DB.PUBLIC.ORDERS
+    FROM @aws_stage_truncatecolumns
+    file_format= (type = csv field_delimiter=',' skip_header=1)
+    pattern='.*Order.*'
+    TRUNCATECOLUMNS = true; 
+    
+    
+SELECT * FROM ORDERS;
+
+------------FORCE on COPY
+---- FORCE ----
+
+CREATE OR REPLACE TABLE  COPY_DB.PUBLIC.ORDERS (
+    ORDER_ID VARCHAR(30),
+    AMOUNT VARCHAR(30),
+    PROFIT INT,
+    QUANTITY INT,
+    CATEGORY VARCHAR(30),
+    SUBCATEGORY VARCHAR(30));
+
+// Prepare stage object
+CREATE OR REPLACE STAGE COPY_DB.PUBLIC.aws_stage_force
+    url='s3://snowflakebucket-copyoption/size/';
+  
+LIST @COPY_DB.PUBLIC.aws_stage_force
+  
+    
+ //Load data using copy command
+COPY INTO COPY_DB.PUBLIC.ORDERS
+    FROM @aws_stage_force
+    file_format= (type = csv field_delimiter=',' skip_header=1)
+    pattern='.*Order.*'
+
+// Not possible to load file that have been loaded and data has not been modified
+COPY INTO COPY_DB.PUBLIC.ORDERS
+    FROM @aws_stage_copy
+    file_format= (type = csv field_delimiter=',' skip_header=1)
+    pattern='.*Order.*'
+   
+
+SELECT * FROM ORDERS;    
+
+
+// Using the FORCE option
+
+COPY INTO COPY_DB.PUBLIC.ORDERS
+    FROM @aws_stage_copy
+    file_format= (type = csv field_delimiter=',' skip_header=1)
+    pattern='.*Order.*'
+    FORCE = TRUE;
+
+    select count(*) from orders;
+
+    truncate table orders
